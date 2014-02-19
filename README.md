@@ -16,12 +16,19 @@ We have tried to contact all the original authors of the scripts. All those who 
 The package contains:
 
 DayZ Epoch Chernarus (v 1.0.4.2a) [DayzEpoch.com]
+
 Vehicle Towing [[R3F] Artillery and Logistic by madbull ~R3F~]
+
 Self-Blood-Bag [by Krixes]
+
 DayZ Chernarus Missions [by layzink]
+
 SAR AI [by Sarge]
+
 BluePhoenix Admin Tools [ by BluePhoenix, updated by jasonpointer]
+
 Dual Admin Debug Monitor [by UrbanSkaters]
+
 
 We have also made a few modifications of our own. These allow people to enable and disable each component as well as set script and Epoch settings in a single file.
 
