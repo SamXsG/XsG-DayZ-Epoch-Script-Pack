@@ -1,13 +1,22 @@
-private ["_nul","_result","_pos","_wsDone","_dir","_block","_isOK","_countr","_objWpnTypes","_objWpnQty","_dam","_selection","_totalvehicles","_object","_idKey","_type","_ownerID","_worldspace","_intentory","_hitPoints","_fuel","_damage","_key","_vehLimit","_hiveResponse","_objectCount","_codeCount","_data","_status","_val","_traderid","_retrader","_traderData","_id","_lockable","_debugMarkerPosition","_vehicle_0","_bQty","_vQty","_BuildingQueue","_objectQueue"];
+private ["_nul","_result","_pos","_wsDone","_dir","_isOK","_countr","_objWpnTypes","_objWpnQty","_dam","_selection","_totalvehicles","_object","_idKey","_type","_ownerID","_worldspace","_intentory","_hitPoints","_fuel","_damage","_key","_vehLimit","_hiveResponse","_objectCount","_codeCount","_data","_status","_val","_traderid","_retrader","_traderData","_id","_lockable","_debugMarkerPosition","_vehicle_0","_bQty","_vQty","_BuildingQueue","_objectQueue","_superkey","_shutdown","_res","_hiveLoaded"];
 
 dayz_versionNo = 		getText(configFile >> "CfgMods" >> "DayZ" >> "version");
 dayz_hiveVersionNo = 	getNumber(configFile >> "CfgMods" >> "DayZ" >> "hiveVersion");
+
+_hiveLoaded = false;
 
 waitUntil{initialized}; //means all the functions are now defined
 
 diag_log "HIVE: Starting";
 
 waituntil{isNil "sm_done"}; // prevent server_monitor be called twice (bug during login of the first player)
+
+if (isNil "server_initCount") then {
+	server_initCount = 1;
+} else {
+	server_initCount = server_initCount + 1;
+};
+diag_log format["server_monitor.sqf execution count = %1", server_initCount];
 	
 // Custom Configs
 if(isnil "MaxVehicleLimit") then {
@@ -35,7 +44,15 @@ if (isServer and isNil "sm_done") then {
 		_key = format["CHILD:302:%1:", dayZ_instance];
 		_hiveResponse = _key call server_hiveReadWrite;  
 		if ((((isnil "_hiveResponse") || {(typeName _hiveResponse != "ARRAY")}) || {((typeName (_hiveResponse select 1)) != "SCALAR")})) then {
-			diag_log ("HIVE: connection problem... HiveExt response:"+str(_hiveResponse));
+			if ((_hiveResponse select 1) == "Instance already initialized") then {
+				_superkey = profileNamespace getVariable "SUPERKEY";
+				_shutdown = format["CHILD:400:%1:", _superkey];
+				_res = _shutdown call server_hiveReadWrite;
+				diag_log ("HIVE: attempt to kill.. HiveExt response:"+str(_res));
+			} else {
+				diag_log ("HIVE: connection problem... HiveExt response:"+str(_hiveResponse));
+			
+			};
 			_hiveResponse = ["",0];
 		} 
 		else {
@@ -48,6 +65,13 @@ if (isServer and isNil "sm_done") then {
 	_objectQueue = [];
 	
 	if ((_hiveResponse select 0) == "ObjectStreamStart") then {
+	
+		// save superkey
+		profileNamespace setVariable ["SUPERKEY",(_hiveResponse select 2)];
+		saveProfileNamespace;
+		
+		_hiveLoaded = true;
+	
 		diag_log ("HIVE: Commence Object Streaming...");
 		_key = format["CHILD:302:%1:", dayZ_instance];
 		_objectCount = _hiveResponse select 1;
@@ -150,7 +174,6 @@ if (isServer and isNil "sm_done") then {
 			if ((typeOf _object) in dayz_allowedObjects) then {
 				if (DZE_GodModeBase) then {
 					_object addEventHandler ["HandleDamage", {false}];
-					_object setDamage 0;
 				} else {
 					_object addMPEventHandler ["MPKilled",{_this call object_handleServerKilled;}];
 				};
@@ -179,10 +202,7 @@ if (isServer and isNil "sm_done") then {
 						};
 						_isOK = 	isClass(configFile >> "CfgWeapons" >> _x);
 						if (_isOK) then {
-							_block = 	getNumber(configFile >> "CfgWeapons" >> _x >> "stopThis") == 1;
-							if (!_block) then {
-								_object addWeaponCargoGlobal [_x,(_objWpnQty select _countr)];
-							};
+							_object addWeaponCargoGlobal [_x,(_objWpnQty select _countr)];
 						};
 						_countr = _countr + 1;
 					} forEach _objWpnTypes; 
@@ -196,10 +216,7 @@ if (isServer and isNil "sm_done") then {
 						if (_x == "ItemTent") then { _x = "ItemTentOld" };
 						_isOK = 	isClass(configFile >> "CfgMagazines" >> _x);
 						if (_isOK) then {
-							_block = 	getNumber(configFile >> "CfgMagazines" >> _x >> "stopThis") == 1;
-							if (!_block) then {
-								_object addMagazineCargoGlobal [_x,(_objWpnQty select _countr)];
-							};
+							_object addMagazineCargoGlobal [_x,(_objWpnQty select _countr)];
 						};
 						_countr = _countr + 1;
 					} forEach _objWpnTypes;
@@ -211,10 +228,7 @@ if (isServer and isNil "sm_done") then {
 					{
 						_isOK = 	isClass(configFile >> "CfgVehicles" >> _x);
 						if (_isOK) then {
-							_block = 	getNumber(configFile >> "CfgVehicles" >> _x >> "stopThis") == 1;
-							if (!_block) then {
-								_object addBackpackCargoGlobal [_x,(_objWpnQty select _countr)];
-							};
+							_object addBackpackCargoGlobal [_x,(_objWpnQty select _countr)];
 						};
 						_countr = _countr + 1;
 					} forEach _objWpnTypes;
@@ -252,7 +266,6 @@ if (isServer and isNil "sm_done") then {
 		};
 	} forEach (_BuildingQueue + _objectQueue);
 	// # END SPAWN OBJECTS #
-	
 
 	// preload server traders menu data into cache
 	if !(DZE_ConfigTrader) then {
@@ -293,16 +306,19 @@ if (isServer and isNil "sm_done") then {
 		} forEach serverTraders;
 	};
 
-	//  spawn_vehicles
-	_vehLimit = MaxVehicleLimit - _totalvehicles;
-	if(_vehLimit > 0) then {
-		diag_log ("HIVE: Spawning # of Vehicles: " + str(_vehLimit));
-		for "_x" from 1 to _vehLimit do {
-			[] spawn spawn_vehicles;
+	if (_hiveLoaded) then {
+		//  spawn_vehicles
+		_vehLimit = MaxVehicleLimit - _totalvehicles;
+		if(_vehLimit > 0) then {
+			diag_log ("HIVE: Spawning # of Vehicles: " + str(_vehLimit));
+			for "_x" from 1 to _vehLimit do {
+				[] spawn spawn_vehicles;
+			};
+		} else {
+			diag_log "HIVE: Vehicle Spawn limit reached!";
 		};
-	} else {
-		diag_log "HIVE: Vehicle Spawn limit reached!";
 	};
+	
 	//  spawn_roadblocks
 	diag_log ("HIVE: Spawning # of Debris: " + str(MaxDynamicDebris));
 	for "_x" from 1 to MaxDynamicDebris do {
@@ -329,13 +345,10 @@ if (isServer and isNil "sm_done") then {
 		OldHeliCrash = false;
 	};
 
-	allowConnection = true;
-
 	// [_guaranteedLoot, _randomizedLoot, _frequency, _variance, _spawnChance, _spawnMarker, _spawnRadius, _spawnFire, _fadeFire]
 	if(OldHeliCrash) then {
 		_nul = [3, 4, (50 * 60), (15 * 60), 0.75, 'center', HeliCrashArea, true, false] spawn server_spawnCrashSite;
 	};
-
 	if (isDedicated) then {
 		// Epoch Events
 		_id = [] spawn server_spawnEvents;
@@ -358,9 +371,7 @@ if (isServer and isNil "sm_done") then {
 		if(isnil "spawnMarkerCount") then {
 			spawnMarkerCount = 10;
 		};
-		
 		actualSpawnMarkerCount = 0;
-
 		// count valid spawn marker positions
 		for "_i" from 0 to spawnMarkerCount do {
 			if (!([(getMarkerPos format["spawn%1", _i]), [0,0,0]] call BIS_fnc_areEqual)) then {
@@ -372,8 +383,11 @@ if (isServer and isNil "sm_done") then {
 			
 		};
 		diag_log format["Total Number of spawn locations %1", actualSpawnMarkerCount];
+		
+		endLoadingScreen;
 	};
 
+	allowConnection = true;	
 	sm_done = true;
 	publicVariable "sm_done";
 };

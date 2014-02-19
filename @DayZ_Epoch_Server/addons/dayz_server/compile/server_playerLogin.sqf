@@ -21,17 +21,11 @@ if (count _this > 2) then {
 };
 
 //Variables
-//_inventory =	XSG_startinginventory;
-//_backpack = 	XSG_startingbackpack;
-//_survival =		[0,0,0];
-//_isInfected =   XSG_startinginfection;
-//_model =		XSG_startingmodel;
 _inventory =	[];
 _backpack = 	[];
 _survival =		[0,0,0];
 _isInfected =   0;
 _model =		"";
-
 
 if (_playerID == "") then {
 	_playerID = getPlayerUID _playerObj;

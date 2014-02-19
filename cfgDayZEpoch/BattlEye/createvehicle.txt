@@ -16,7 +16,7 @@
 5 "_227"
 1 "Bo_"
 5 "_AA" !"Soldier_Bodyguard_AA12_PMC_DZ"
-5 "_AT" !="R_M136_AT"
+5 "_AT" !="R_M136_AT" !"M_Hellfire_AT"
 1 "R_M136_AT" //keep monitoring to catch obvious abuse
 5 "_AP"
 5 "_80"
